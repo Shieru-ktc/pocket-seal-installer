@@ -1,16 +1,21 @@
 package com.github.shieru_lab
 
-//TIP コードを<b>実行</b>するには、<shortcut actionId="Run"/> を押すか
-// ガターの <icon src="AllIcons.Actions.Execute"/> アイコンをクリックします。
-fun main() {
-    val name = "Kotlin"
-    //TIP ハイライトされたテキストにキャレットがある状態で <shortcut actionId="ShowIntentionActions"/> を押すと
-    // IntelliJ IDEA によるその修正案を確認できます。
-    println("Hello, $name!")
+import com.github.ajalt.clikt.command.SuspendingCliktCommand
+import com.github.ajalt.clikt.command.main
+import com.github.ajalt.clikt.parameters.options.default
+import com.github.ajalt.clikt.parameters.options.option
+import com.github.ajalt.clikt.parameters.types.int
+import kotlinx.coroutines.delay
 
-    for (i in 1..5) {
-        //TIP <shortcut actionId="Debug"/> を押してコードのデバッグを開始します。<icon src="AllIcons.Debugger.Db_set_breakpoint"/> ブレークポイントを 1 つ設定しましたが、
-        // <shortcut actionId="ToggleLineBreakpoint"/> を押すといつでも他のブレークポイントを追加できます。
-        println("i = $i")
+class MainCommand : SuspendingCliktCommand() {
+    val count by option(help = "Number of greetings").int().default(5)
+
+    override suspend fun run() {
+        repeat(count) {
+            println("#$it Hello Kotlin!")
+            delay(1000)
+        }
     }
 }
+
+suspend fun main(args: Array<String>) = MainCommand().main(args)
