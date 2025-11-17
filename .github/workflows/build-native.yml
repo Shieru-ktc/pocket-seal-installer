@@ -1,0 +1,66 @@
+name: Build and Release Native Executables
+
+on:
+  push:
+    branches:
+      - '**'
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  # Job 1: Build
+  build-native:
+    name: Build on ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ ubuntu-latest, windows-latest ]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up GraalVM
+        uses: graalvm/setup-graalvm@v1
+        with:
+          java-version: '21'
+          distribution: 'graalvm-community'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          native-image-job-reports: 'true'
+
+      - name: Grant execute permission for gradlew
+        if: runner.os != 'Windows'
+        run: chmod +x gradlew
+
+      - name: Build with Gradle
+        run: ./gradlew nativeBuild
+
+      - name: Upload artifact (Temporary)
+        uses: actions/upload-artifact@v4
+        with:
+          name: pocket-seal-installer-${{ matrix.os }}
+          path: build/native/nativeBuild/pocket-seal-installer*
+
+  # Job 2: Release
+  release:
+    name: Update 'Latest' GitHub Release
+    needs: build-native
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: List downloaded artifacts
+        run: ls -lR artifacts
+
+      - name: Update 'Latest' Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: "latest"
+          body: "Latest development build from main branch."
+          files: artifacts/pocket-seal-installer-*/*
