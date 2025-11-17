@@ -42,7 +42,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: pocket-seal-installer-${{ matrix.os }}
-          path: build/native/nativeBuild/pocket-seal-installer*
+          path: build/native/nativeCompile/pocket-seal-installer*
 
   # Job 2: Release
   release:
