@@ -34,7 +34,7 @@ jobs:
         run: chmod +x gradlew
 
       - name: Build with Gradle
-        run: ./gradlew nativeBuild
+        run: ./gradlew nativeCompile
 
       - name: Upload artifact (Temporary)
         uses: actions/upload-artifact@v4
