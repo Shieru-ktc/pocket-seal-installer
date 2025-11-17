@@ -35,6 +35,8 @@ jobs:
 
       - name: Build with Gradle
         run: ./gradlew nativeCompile
+        env:
+          GRADLE_OPTS: -Djava.io.tmpdir=${{ runner.temp }}
 
       - name: Upload artifact (Temporary)
         uses: actions/upload-artifact@v4

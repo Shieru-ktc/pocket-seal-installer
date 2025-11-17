@@ -4,8 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="7c64eab0-846a-469b-bbb9-2d90f64e33bb" name="変更" comment="">
+    <list default="true" id="7c64eab0-846a-469b-bbb9-2d90f64e33bb" name="変更" comment="add GitToolBox project settings for commit message validation">
       <change beforePath="$PROJECT_DIR$/.github/workflows/build-native.yml" beforeDir="false" afterPath="$PROJECT_DIR$/.github/workflows/build-native.yml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -120,6 +121,7 @@
     "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
     "RunOnceActivity.cidr.known.project.marker": "true",
     "RunOnceActivity.readMode.enableVisualFormatting": "true",
+    "SHARE_PROJECT_CONFIGURATION_FILES": "true",
     "cidr.known.project.marker": "true",
     "dart.analysis.tool.window.visible": "false",
     "git-widget-placeholder": "main",
@@ -200,12 +202,34 @@
       <workItem from="1763121335981" duration="108000" />
       <workItem from="1763121445785" duration="181000" />
       <workItem from="1763357533769" duration="143000" />
-      <workItem from="1763357703110" duration="5131000" />
+      <workItem from="1763357703110" duration="5951000" />
     </task>
+    <task id="LOCAL-00001" summary="update build process and workspace configuration">
+      <option name="closed" value="true" />
+      <created>1763363624564</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1763363624564</updated>
+    </task>
+    <task id="LOCAL-00002" summary="add GitToolBox project settings for commit message validation">
+      <option name="closed" value="true" />
+      <created>1763363661339</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1763363661339</updated>
+    </task>
+    <option name="localTasksCounter" value="3" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="update build process and workspace configuration" />
+    <MESSAGE value="add GitToolBox project settings for commit message validation" />
+    <option name="LAST_COMMIT_MESSAGE" value="add GitToolBox project settings for commit message validation" />
   </component>
   <component name="github-copilot-workspace">
     <instructionFileLocations>
