@@ -2,6 +2,7 @@ plugins {
     kotlin("jvm") version "2.2.20"
     application
     id("org.graalvm.buildtools.native") version "0.11.3"
+    id("com.github.johnrengelman.shadow") version "8.1.1"
 }
 
 group = "com.github.shieru_lab"
