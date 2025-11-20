@@ -68,7 +68,14 @@ sealed class Platform {
         }
 
         override suspend fun createPythonEnv() {
-            TODO()
+            ProcessBuilder("python", "-m", "venv", "python")
+                .inheritIO()
+                .start()
+                .waitFor()
+            ProcessBuilder("./python/bin/pip", "install", "uv")
+                .inheritIO()
+                .start()
+                .waitFor()
         }
 
         override fun toString() = "Linux"
