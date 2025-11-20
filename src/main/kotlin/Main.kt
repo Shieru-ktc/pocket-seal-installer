@@ -31,6 +31,7 @@ class MainCommand() : SuspendingCliktCommand() {
             platform.greet()
             delay(1000)
         }
+        platform.createPythonEnv()
     }
 }
 
