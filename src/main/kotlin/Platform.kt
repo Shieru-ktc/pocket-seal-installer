@@ -1,63 +1,72 @@
 package com.github.shieru_lab
 
 import io.ktor.client.HttpClient
-import io.ktor.client.call.body
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.request.get
-import io.ktor.utils.io.ByteReadChannel
-import io.ktor.utils.io.jvm.javaio.copyTo
-import java.io.File
+import io.ktor.client.statement.bodyAsChannel
+import io.ktor.client.statement.bodyAsText
+import io.ktor.http.HttpStatusCode
+import io.ktor.utils.io.jvm.javaio.toInputStream
+import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
+import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream
+import java.io.BufferedInputStream
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.nio.file.StandardCopyOption
+import java.util.Locale
 import java.util.zip.ZipInputStream
-
-const val PYTHON_DOWNLOAD_URL = "https://www.python.org/ftp/python/3.13.9/python-3.13.9-embed-amd64.zip"
 
 object HttpClientFactory {
     val client = HttpClient(CIO)
 }
 
+const val UV_DOWNLOAD_BASE = "https://github.com/astral-sh/uv/releases"
+
+val systemArch = when (System.getProperty("os.arch").lowercase(Locale.getDefault())) {
+    "x86_64", "amd64" -> "x86_64"
+    "aarch64", "arm64" -> "aarch64"
+    else -> throw UnsupportedOperationException("Unsupported Architecture: ${0}")
+}
+
 sealed class Platform {
     abstract fun greet()
-    abstract suspend fun createPythonEnv()
     abstract override fun toString(): String
+    abstract fun uvDownloadUrl(arch: String?, version: String?): String
+    abstract fun prepareUv(inputStream: BufferedInputStream)
+
+    suspend fun downloadUv(arch: String? = null, version: String? = null) {
+        val response = HttpClientFactory.client.get(uvDownloadUrl(arch, version))
+        if (response.status != HttpStatusCode.OK) {
+            throw RuntimeException(response.bodyAsText())
+        }
+        prepareUv(response.bodyAsChannel().toInputStream().buffered())
+    }
 
     class Windows() : Platform() {
         override fun greet() {
             println("Windows")
         }
 
-        override suspend fun createPythonEnv() {
-            val response = HttpClientFactory.client.get(PYTHON_DOWNLOAD_URL)
-            val channel: ByteReadChannel = response.body()
-            val file = File("./python.zip")
-            channel.copyTo(
-                file.outputStream(),
-            )
-            ZipInputStream(file.inputStream()).use { inputStream ->
+        override fun uvDownloadUrl(arch: String?, version: String?): String {
+            return "${UV_DOWNLOAD_BASE}/${version ?: "latest"}/download/uv-${arch ?: systemArch}-pc-windows-msvc.zip"
+        }
+
+        override fun prepareUv(inputStream: BufferedInputStream) {
+            ZipInputStream(inputStream).use { stream ->
                 val baseDir = Paths.get("./python/").toAbsolutePath().normalize()
 
-                var entry = inputStream.nextEntry
+                var entry = stream.nextEntry
                 while (entry != null) {
-                    val destination = baseDir.resolve(entry.name).normalize()
-
-                    if (!destination.startsWith(baseDir)) {
-                        throw SecurityException("Invalid file path: ${entry.name}")
+                    val destination = baseDir.resolve(entry.name).fileName.normalize()
+                    if (!entry.isDirectory) {
+                        Files.copy(stream, destination, StandardCopyOption.REPLACE_EXISTING)
                     }
-
-                    if (entry.isDirectory) {
-                        Files.createDirectories(destination)
-                    } else {
-                        if (destination.parent != null) {
-                            Files.createDirectories(destination.parent)
-                        }
-                        Files.copy(inputStream, destination, StandardCopyOption.REPLACE_EXISTING)
-                    }
-                    entry = inputStream.nextEntry
+                    entry = stream.nextEntry
                 }
             }
+
         }
+
 
         override fun toString() = "Windows"
     }
@@ -67,15 +76,26 @@ sealed class Platform {
             println("Hello from Linux!")
         }
 
-        override suspend fun createPythonEnv() {
-            ProcessBuilder("python", "-m", "venv", "python")
-                .inheritIO()
-                .start()
-                .waitFor()
-            ProcessBuilder("./python/bin/pip", "install", "uv")
-                .inheritIO()
-                .start()
-                .waitFor()
+        override fun uvDownloadUrl(arch: String?, version: String?): String {
+            return "${UV_DOWNLOAD_BASE}/${version ?: "latest"}/download/uv-${arch ?: systemArch}-unknown-linux-gnu.tar.gz"
+        }
+
+        override fun prepareUv(inputStream: BufferedInputStream) {
+            val gzipIn = GzipCompressorInputStream(inputStream)
+            TarArchiveInputStream(gzipIn).use { tarIn ->
+                var entry = tarIn.nextEntry
+                while (entry != null) {
+                    val filePath = Paths.get(entry.name).fileName.normalize()
+                    if (!entry.isDirectory) {
+                        Files.copy(tarIn, filePath, StandardCopyOption.REPLACE_EXISTING)
+
+                        if (filePath.toString().endsWith("uv")) {
+                            filePath.toFile().setExecutable(true)
+                        }
+                    }
+                    entry = tarIn.nextEntry
+                }
+            }
         }
 
         override fun toString() = "Linux"

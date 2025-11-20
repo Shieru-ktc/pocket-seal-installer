@@ -5,12 +5,9 @@ import com.github.ajalt.clikt.command.main
 import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
-import com.github.ajalt.clikt.parameters.types.int
-import kotlinx.coroutines.delay
 import java.lang.System
 
 class MainCommand() : SuspendingCliktCommand() {
-    val count by option(help = "Number of greetings").int().default(5)
     val platform by option("--platform", help = "Override platform (windows/linux)").convert {
         when (it.lowercase()) {
             "windows" -> Platform.Windows()
@@ -26,12 +23,7 @@ class MainCommand() : SuspendingCliktCommand() {
     })
 
     override suspend fun run() {
-        repeat(count) {
-            println("#$it Hello Kotlin!")
-            platform.greet()
-            delay(1000)
-        }
-        platform.createPythonEnv()
+        platform.downloadUv()
     }
 }
 

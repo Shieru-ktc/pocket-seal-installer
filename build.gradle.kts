@@ -18,6 +18,7 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
     implementation("io.ktor:ktor-client-core:3.3.2")
     implementation("io.ktor:ktor-client-cio:3.3.2")
+    implementation("org.apache.commons:commons-compress:1.28.0")
     implementation(kotlin("reflect"))
     testImplementation(kotlin("test"))
 }
