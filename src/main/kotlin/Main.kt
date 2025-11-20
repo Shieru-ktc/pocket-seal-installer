@@ -1,16 +1,30 @@
 package com.github.shieru_lab
 
-//TIP コードを<b>実行</b>するには、<shortcut actionId="Run"/> を押すか
-// ガターの <icon src="AllIcons.Actions.Execute"/> アイコンをクリックします。
-fun main() {
-    val name = "Kotlin"
-    //TIP ハイライトされたテキストにキャレットがある状態で <shortcut actionId="ShowIntentionActions"/> を押すと
-    // IntelliJ IDEA によるその修正案を確認できます。
-    println("Hello, $name!")
+import com.github.ajalt.clikt.command.SuspendingCliktCommand
+import com.github.ajalt.clikt.command.main
+import com.github.ajalt.clikt.parameters.options.convert
+import com.github.ajalt.clikt.parameters.options.default
+import com.github.ajalt.clikt.parameters.options.option
+import java.lang.System
 
-    for (i in 1..5) {
-        //TIP <shortcut actionId="Debug"/> を押してコードのデバッグを開始します。<icon src="AllIcons.Debugger.Db_set_breakpoint"/> ブレークポイントを 1 つ設定しましたが、
-        // <shortcut actionId="ToggleLineBreakpoint"/> を押すといつでも他のブレークポイントを追加できます。
-        println("i = $i")
+class MainCommand() : SuspendingCliktCommand() {
+    val platform by option("--platform", help = "Override platform (windows/linux)").convert {
+        when (it.lowercase()) {
+            "windows" -> Platform.Windows()
+            "linux" -> Platform.Linux()
+            else -> fail("Unknown platform: $it")
+        }
+    }.default(System.getProperty("os.name").lowercase().let { os ->
+        when {
+            os.contains("windows") -> Platform.Windows()
+            os.contains("linux") -> Platform.Linux()
+            else -> throw IllegalArgumentException("Unsupported OS: $os")
+        }
+    })
+
+    override suspend fun run() {
+        platform.downloadUv()
     }
 }
+
+suspend fun main(args: Array<String>) = MainCommand().main(args)
