@@ -5,7 +5,8 @@ import com.github.ajalt.clikt.command.main
 import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
-import java.lang.System
+import java.nio.file.Paths
+import kotlin.io.path.exists
 
 class MainCommand() : SuspendingCliktCommand() {
     val platform by option("--platform", help = "Override platform (windows/linux)").convert {
@@ -23,8 +24,32 @@ class MainCommand() : SuspendingCliktCommand() {
     })
 
     override suspend fun run() {
-        platform.downloadUv()
-        platform.cloneProject()
+        // if current directory has "uv" or "uv.exe", skip download
+        val uvExists = when (platform) {
+            is Platform.Windows -> System.getProperty("user.dir")
+                .let { dir -> Paths.get(dir, "uv.exe") }.exists()
+
+            is Platform.Linux -> System.getProperty("user.dir")
+                .let { dir -> Paths.get(dir, "uv") }.exists()
+        }
+        when {
+            uvExists -> echo("UV already exists, skipping download.")
+            else -> platform.downloadUv()
+        }
+
+        val projectExists = System.getProperty("user.dir")
+            .let { dir -> Paths.get(dir, "pyproject.toml") }.exists()
+        when {
+            projectExists -> echo("Project already exists, skipping clone.")
+            else -> platform.cloneProject()
+        }
+
+        platform.modelList().forEach {
+            println("Downloading model: ${it.type}... ")
+            it.urls.forEach { model ->
+                println("  $model")
+            }
+        }
     }
 }
 

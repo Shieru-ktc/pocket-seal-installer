@@ -6,9 +6,12 @@ import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.utils.io.jvm.javaio.*
+import kotlinx.serialization.json.Json
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
 import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream
 import java.io.BufferedInputStream
+import java.io.BufferedReader
+import java.io.InputStreamReader
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.nio.file.StandardCopyOption
@@ -35,6 +38,7 @@ sealed class Platform {
     abstract fun uvDownloadUrl(arch: String?, version: String?): String
     protected abstract fun prepareUv(inputStream: BufferedInputStream)
     protected abstract suspend fun prepareProject()
+    abstract fun modelList(): List<ModelDownloadInfo>
 
     suspend fun downloadUv(arch: String? = null, version: String? = null) {
         val response = HttpClientFactory.client.get(uvDownloadUrl(arch, version))
@@ -42,10 +46,6 @@ sealed class Platform {
             throw RuntimeException(response.bodyAsText())
         }
         prepareUv(response.bodyAsChannel().toInputStream().buffered())
-    }
-
-    suspend fun downloadModels() {
-
     }
 
     suspend fun cloneProject(repoUrl: String = PROJECT_REPOSITORY_URL, branch: String = "main") {
@@ -139,6 +139,22 @@ sealed class Platform {
             }
         }
 
+        override fun modelList(): List<ModelDownloadInfo> {
+            val process = ProcessBuilder("uv.exe", "run", "src/ner_openvino/setup.py").start()
+            process.waitFor()
+            val reader = BufferedReader(InputStreamReader(process.inputStream))
+            val jsonLines = mutableListOf<String>()
+
+            while (true) {
+                val line = reader.readLine() ?: break
+                if (line.isNotBlank()) {
+                    jsonLines.add(line)
+                }
+            }
+            return jsonLines.map {
+                Json.decodeFromString<ModelDownloadInfo>(it)
+            }
+        }
 
         override fun toString() = "Windows"
     }
@@ -184,6 +200,23 @@ sealed class Platform {
             val exitCode = builder.waitFor()
             if (exitCode != 0) {
                 throw RuntimeException("uv sync failed with exit code $exitCode")
+            }
+        }
+
+        override fun modelList(): List<ModelDownloadInfo> {
+            val process = ProcessBuilder("uv", "run", "src/ner_openvino/setup.py").start()
+            process.waitFor()
+            val reader = BufferedReader(InputStreamReader(process.inputStream))
+            val jsonLines = mutableListOf<String>()
+
+            while (true) {
+                val line = reader.readLine() ?: break
+                if (line.isNotBlank()) {
+                    jsonLines.add(line)
+                }
+            }
+            return jsonLines.map {
+                Json.decodeFromString<ModelDownloadInfo>(it)
             }
         }
 

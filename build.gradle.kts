@@ -3,6 +3,7 @@ plugins {
     application
     id("org.graalvm.buildtools.native") version "0.11.3"
     id("com.github.johnrengelman.shadow") version "8.1.1"
+    kotlin("plugin.serialization") version "2.2.21"
 }
 
 group = "com.github.shieru_lab"
@@ -19,6 +20,7 @@ dependencies {
     implementation("io.ktor:ktor-client-core:3.3.2")
     implementation("io.ktor:ktor-client-cio:3.3.2")
     implementation("org.apache.commons:commons-compress:1.28.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
     implementation(kotlin("reflect"))
     testImplementation(kotlin("test"))
 }
