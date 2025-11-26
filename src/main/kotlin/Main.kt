@@ -24,6 +24,7 @@ class MainCommand() : SuspendingCliktCommand() {
 
     override suspend fun run() {
         platform.downloadUv()
+        platform.cloneProject()
     }
 }
 
