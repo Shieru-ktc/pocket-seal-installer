@@ -6,9 +6,8 @@ import io.ktor.client.plugins.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
-import io.ktor.utils.io.ByteReadChannel
+import io.ktor.utils.io.*
 import io.ktor.utils.io.jvm.javaio.*
-import io.ktor.utils.io.readRemaining
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
@@ -29,11 +28,13 @@ import java.util.zip.ZipInputStream
 import kotlin.io.path.exists
 
 object HttpClientFactory {
-    val client = HttpClient(CIO) {
-        install(HttpTimeout) {
-            requestTimeoutMillis = HttpTimeoutConfig.INFINITE_TIMEOUT_MS
-            socketTimeoutMillis = 60_000
-            connectTimeoutMillis = 30_000
+    val client by lazy {
+        HttpClient(CIO) {
+            install(HttpTimeout) {
+                requestTimeoutMillis = HttpTimeoutConfig.INFINITE_TIMEOUT_MS
+                socketTimeoutMillis = 60_000
+                connectTimeoutMillis = 30_000
+            }
         }
     }
 }
@@ -92,6 +93,7 @@ sealed class Platform {
         }
         prepareProject()
     }
+
     suspend fun downloadModels(modelInfos: List<ModelDownloadInfo>) = coroutineScope {
         val semaphore = Semaphore(5)
         val bufferSize = 8192L
