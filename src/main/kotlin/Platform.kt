@@ -2,10 +2,19 @@ package com.github.shieru_lab
 
 import io.ktor.client.*
 import io.ktor.client.engine.cio.*
+import io.ktor.client.plugins.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
+import io.ktor.utils.io.ByteReadChannel
 import io.ktor.utils.io.jvm.javaio.*
+import io.ktor.utils.io.readRemaining
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
+import kotlinx.io.readByteArray
 import kotlinx.serialization.json.Json
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
 import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream
@@ -20,7 +29,13 @@ import java.util.zip.ZipInputStream
 import kotlin.io.path.exists
 
 object HttpClientFactory {
-    val client = HttpClient(CIO)
+    val client = HttpClient(CIO) {
+        install(HttpTimeout) {
+            requestTimeoutMillis = HttpTimeoutConfig.INFINITE_TIMEOUT_MS
+            socketTimeoutMillis = 60_000
+            connectTimeoutMillis = 30_000
+        }
+    }
 }
 
 const val UV_DOWNLOAD_BASE = "https://github.com/astral-sh/uv/releases"
@@ -77,22 +92,57 @@ sealed class Platform {
         }
         prepareProject()
     }
+    suspend fun downloadModels(modelInfos: List<ModelDownloadInfo>) = coroutineScope {
+        val semaphore = Semaphore(5)
+        val bufferSize = 8192L
 
-    suspend fun downloadModels(modelInfos: List<ModelDownloadInfo>) {
         for (modelInfo in modelInfos) {
             val saveDir = Paths.get(modelInfo.saveDir).toAbsolutePath().normalize()
             if (!saveDir.exists()) {
                 Files.createDirectories(saveDir)
             }
+
             for (url in modelInfo.urls) {
-                val response = HttpClientFactory.client.get(url)
-                if (response.status != HttpStatusCode.OK) {
-                    throw RuntimeException("Failed to download model from $url: ${response.bodyAsText()}")
-                }
-                val fileName = url.substringAfterLast("/")
-                val filePath = saveDir.resolve(fileName).normalize()
-                response.bodyAsChannel().toInputStream().use { input ->
-                    Files.copy(input, filePath, StandardCopyOption.REPLACE_EXISTING)
+                launch(Dispatchers.IO) {
+                    semaphore.withPermit {
+                        val fileName = url.substringAfterLast("/")
+                        val filePath = saveDir.resolve(fileName).normalize()
+
+                        HttpClientFactory.client.prepareGet(url).execute { httpResponse ->
+                            if (httpResponse.status != HttpStatusCode.OK) {
+                                throw RuntimeException("Failed: $url")
+                            }
+
+                            val channel: ByteReadChannel = httpResponse.bodyAsChannel()
+                            val contentLength = httpResponse.contentLength()
+                            var totalBytesRead = 0L
+                            var lastLoggedPercent = -1
+
+                            Files.newOutputStream(filePath).use { fileOutput ->
+                                while (!channel.isClosedForRead) {
+                                    val packet = channel.readRemaining(bufferSize)
+
+                                    if (packet.exhausted()) break
+
+                                    val bytes = packet.readByteArray()
+                                    fileOutput.write(bytes)
+
+                                    totalBytesRead += bytes.size
+
+                                    if (contentLength != null && contentLength > 0) {
+                                        val percent = (totalBytesRead * 100 / contentLength).toInt()
+                                        if (percent > lastLoggedPercent) {
+                                            println("[$fileName] $percent% ($totalBytesRead / $contentLength bytes)")
+                                            lastLoggedPercent = percent
+                                        }
+                                    } else {
+                                        println("[$fileName] $totalBytesRead bytes downloaded...")
+                                    }
+                                }
+                            }
+                        }
+                        println("[$fileName] Download Complete!")
+                    }
                 }
             }
         }

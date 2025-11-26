@@ -44,12 +44,14 @@ class MainCommand() : SuspendingCliktCommand() {
             else -> platform.cloneProject()
         }
 
-        platform.modelList().forEach {
+        val models = platform.modelList()
+        models.forEach {
             println("Downloading model: ${it.type}... ")
             it.urls.forEach { model ->
                 println("  $model")
             }
         }
+        platform.downloadModels(models)
     }
 }
 
