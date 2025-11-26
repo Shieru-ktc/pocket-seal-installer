@@ -43,6 +43,7 @@ graalvmNative {
                 languageVersion.set(JavaLanguageVersion.of(21))
                 vendor.set(JvmVendorSpec.GRAAL_VM)
             })
+            buildArgs.add("--initialize-at-build-time")
         }
     }
 }
