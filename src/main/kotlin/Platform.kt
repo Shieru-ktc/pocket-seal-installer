@@ -52,19 +52,24 @@ sealed class Platform {
         }
 
         override fun prepareUv(inputStream: BufferedInputStream) {
+            val targetDir = Paths.get("./").toAbsolutePath().normalize()
             ZipInputStream(inputStream).use { stream ->
-                val baseDir = Paths.get("./python/").toAbsolutePath().normalize()
-
                 var entry = stream.nextEntry
                 while (entry != null) {
-                    val destination = baseDir.resolve(entry.name).fileName.normalize()
+
+                    // 論理的に安全なので、パストラバーサルに関する警告を抑制
+                    @Suppress("JvmTaintAnalysis")
+                    val filePath = targetDir.resolve(Paths.get(entry.name).fileName).normalize()
+
+                    if (!filePath.startsWith(targetDir)) {
+                        throw SecurityException("Invalid Path")
+                    }
                     if (!entry.isDirectory) {
-                        Files.copy(stream, destination, StandardCopyOption.REPLACE_EXISTING)
+                        Files.copy(stream, filePath, StandardCopyOption.REPLACE_EXISTING)
                     }
                     entry = stream.nextEntry
                 }
             }
-
         }
 
 
@@ -82,10 +87,14 @@ sealed class Platform {
 
         override fun prepareUv(inputStream: BufferedInputStream) {
             val gzipIn = GzipCompressorInputStream(inputStream)
+            val targetDir = Paths.get(".").toAbsolutePath().normalize()
             TarArchiveInputStream(gzipIn).use { tarIn ->
                 var entry = tarIn.nextEntry
                 while (entry != null) {
-                    val filePath = Paths.get(entry.name).fileName.normalize()
+                    val filePath = targetDir.resolve(entry.name).fileName.normalize()
+                    if (!filePath.startsWith(targetDir)) {
+                        throw SecurityException("Invalid Path")
+                    }
                     if (!entry.isDirectory) {
                         Files.copy(tarIn, filePath, StandardCopyOption.REPLACE_EXISTING)
 
