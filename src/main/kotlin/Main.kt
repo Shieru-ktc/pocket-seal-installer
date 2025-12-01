@@ -55,6 +55,7 @@ class MainCommand() : SuspendingCliktCommand() {
             }
         }
         platform.downloadModels(models)
+        platform.preprocessModels()
     }
 }
 

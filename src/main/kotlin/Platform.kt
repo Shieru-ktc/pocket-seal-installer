@@ -184,6 +184,15 @@ sealed class Platform {
         }
     }
 
+    suspend fun preprocessModels() {
+        withContext(Dispatchers.IO) {
+            createUvProcess("run", "src/ner_openvino/preprocess_model.py") {
+                redirectOutput(ProcessBuilder.Redirect.INHERIT)
+                redirectError(ProcessBuilder.Redirect.INHERIT)
+            }.start().waitFor()
+        }
+    }
+
     class Windows() : Platform() {
         override fun greet() {
             println("Windows")
