@@ -4,6 +4,7 @@ import com.github.ajalt.clikt.command.SuspendingCliktCommand
 import com.github.ajalt.clikt.command.main
 import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.default
+import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import java.nio.file.Paths
 import kotlin.io.path.exists
@@ -22,8 +23,10 @@ class MainCommand() : SuspendingCliktCommand() {
             else -> throw IllegalArgumentException("Unsupported OS: $os")
         }
     })
+    val skip by option(help = "Don't skip if already prepared").flag("--no-skip", default = true)
 
     override suspend fun run() {
+        println("skip mode: $skip")
         // if current directory has "uv" or "uv.exe", skip download
         val uvExists = when (platform) {
             is Platform.Windows -> System.getProperty("user.dir")
