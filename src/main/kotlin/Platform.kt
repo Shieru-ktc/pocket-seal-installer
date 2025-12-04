@@ -56,15 +56,38 @@ sealed class Platform(val logger: Logger) {
     protected abstract fun prepareUv(inputStream: BufferedInputStream)
 
     suspend fun downloadUv(arch: String? = null, version: String? = null) {
-        val response = HttpClientFactory.client.get(uvDownloadUrl(arch, version))
-        if (response.status != HttpStatusCode.OK) {
-            throw RuntimeException(response.bodyAsText())
+        withContext(Dispatchers.IO) {
+            val response = HttpClientFactory.client.get(uvDownloadUrl(arch, version)) {
+                onDownload { bytesSentTotal, contentLength ->
+                    val progress = if (contentLength != null && contentLength > 0) {
+                        bytesSentTotal.toDouble() / contentLength.toDouble()
+                    } else {
+                        null
+                    }
+                    logger.log(
+                        TaskLog(
+                            task = TaskName.DOWNLOAD_UV,
+                            status = LogStatus.ONGOING,
+                            progress = progress?.toFloat()
+                        )
+                    )
+                }
+            }
+            if (response.status != HttpStatusCode.OK) {
+                throw RuntimeException(response.bodyAsText())
+            }
+            logger.log(
+                TaskLog(
+                    task = TaskName.DOWNLOAD_UV,
+                    status = LogStatus.COMPLETE
+                )
+            )
+            prepareUv(response.bodyAsChannel().toInputStream().buffered())
         }
-        prepareUv(response.bodyAsChannel().toInputStream().buffered())
     }
 
     fun createUvProcess(vararg args: String, block: ProcessBuilder.() -> ProcessBuilder): ProcessBuilder {
-        val executable = when(this) {
+        val executable = when (this) {
             is Windows -> "uv.exe"
             is Linux -> "uv"
         }
@@ -74,8 +97,14 @@ sealed class Platform(val logger: Logger) {
     }
 
     fun modelList(): List<ModelDownloadInfo> {
+        logger.log(
+            TaskLog(
+                task = TaskName.GETTING_MODEL_URLS,
+                status = LogStatus.ONGOING
+            )
+        )
         val process = createUvProcess("run", "src/ner_openvino/setup.py") {
-            redirectError(ProcessBuilder.Redirect.INHERIT)
+            redirectError(ProcessBuilder.Redirect.DISCARD)
             redirectOutput(ProcessBuilder.Redirect.PIPE)
         }.start()
         process.waitFor()
@@ -88,14 +117,43 @@ sealed class Platform(val logger: Logger) {
                 jsonLines.add(line)
             }
         }
-        return jsonLines.map {
+        val models = jsonLines.map {
             Json.decodeFromString<ModelDownloadInfo>(it)
         }
+        logger.log(
+            ModelInfoLog(
+                urls = models.flatMap { it.urls },
+                save_to = models.joinToString(", ") { it.saveDir }
+            )
+        )
+        logger.log(
+            TaskLog(
+                task = TaskName.GETTING_MODEL_URLS,
+                status = LogStatus.COMPLETE
+            )
+        )
+        return models
     }
 
     suspend fun cloneProject(repoUrl: String = PROJECT_REPOSITORY_URL, branch: String = "main") {
         val cloneUrl = "$repoUrl/archive/refs/heads/$branch.zip"
-        val response = HttpClientFactory.client.get(cloneUrl)
+        val response = HttpClientFactory.client.get(cloneUrl) {
+            onDownload {
+                bytesSentTotal, contentLength ->
+                val progress = if (contentLength != null && contentLength > 0) {
+                    bytesSentTotal.toDouble() / contentLength.toDouble()
+                } else {
+                    null
+                }
+                logger.log(
+                    TaskLog(
+                        task = TaskName.DOWNLOAD_PROJECT,
+                        status = LogStatus.ONGOING,
+                        progress = progress?.toFloat()
+                    )
+                )
+            }
+        }
         if (response.status != HttpStatusCode.OK) {
             throw RuntimeException(response.bodyAsText())
         }
@@ -120,12 +178,30 @@ sealed class Platform(val logger: Logger) {
                 entry = stream.nextEntry
             }
         }
+        logger.log(
+            TaskLog(
+                task = TaskName.DOWNLOAD_PROJECT,
+                status = LogStatus.COMPLETE
+            )
+        )
+        logger.log(
+            TaskLog(
+                task = TaskName.UV_SYNC,
+                status = LogStatus.ONGOING
+            )
+        )
         withContext(Dispatchers.IO) {
             createUvProcess("sync") {
-                redirectOutput(ProcessBuilder.Redirect.INHERIT)
-                redirectError(ProcessBuilder.Redirect.INHERIT)
+                redirectOutput(ProcessBuilder.Redirect.DISCARD)
+                redirectError(ProcessBuilder.Redirect.DISCARD)
             }.start().waitFor()
         }
+        logger.log(
+            TaskLog(
+                task = TaskName.UV_SYNC,
+                status = LogStatus.COMPLETE
+            )
+        )
     }
 
     suspend fun downloadModels(modelInfos: List<ModelDownloadInfo>) = coroutineScope {
@@ -139,11 +215,17 @@ sealed class Platform(val logger: Logger) {
             }
 
             for (url in modelInfo.urls) {
+                val fileName = url.substringAfterLast("/")
+                val filePath = saveDir.resolve(fileName).normalize()
+                logger.log(
+                    TaskLog(
+                        task = TaskName.DOWNLOAD_MODEL_FILE,
+                        status = LogStatus.SCHEDULED,
+                        file = filePath.toString()
+                    )
+                )
                 launch(Dispatchers.IO) {
                     semaphore.withPermit {
-                        val fileName = url.substringAfterLast("/")
-                        val filePath = saveDir.resolve(fileName).normalize()
-
                         HttpClientFactory.client.prepareGet(url).execute { httpResponse ->
                             if (httpResponse.status != HttpStatusCode.OK) {
                                 throw RuntimeException("Failed: $url")
@@ -168,27 +250,59 @@ sealed class Platform(val logger: Logger) {
                                     if (contentLength != null && contentLength > 0) {
                                         val percent = (totalBytesRead * 100 / contentLength).toInt()
                                         if (percent > lastLoggedPercent) {
-                                            println("[$fileName] $percent% ($totalBytesRead / $contentLength bytes)")
+                                            logger.log(
+                                                TaskLog(
+                                                    task = TaskName.DOWNLOAD_MODEL_FILE,
+                                                    status = LogStatus.ONGOING,
+                                                    progress = (totalBytesRead.toDouble() / contentLength.toDouble()).toFloat(),
+                                                    file = filePath.toString()
+                                                )
+                                            )
                                             lastLoggedPercent = percent
                                         }
                                     } else {
-                                        println("[$fileName] $totalBytesRead bytes downloaded...")
+                                        logger.log(
+                                            TaskLog(
+                                                task = TaskName.DOWNLOAD_MODEL_FILE,
+                                                status = LogStatus.ONGOING,
+                                                file = filePath.toString(),
+                                                progress = null
+                                            )
+                                        )
                                     }
                                 }
                             }
                         }
-                        println("[$fileName] Download Complete!")
+                        logger.log(
+                            TaskLog(
+                                task = TaskName.DOWNLOAD_MODEL_FILE,
+                                status = LogStatus.COMPLETE,
+                                file = filePath.toString()
+                            )
+                        )
                     }
                 }
             }
+            logger.log(
+                TaskLog(
+                    task = TaskName.DOWNLOAD_MODEL_FILE,
+                    status = LogStatus.COMPLETE,
+                )
+            )
         }
     }
 
     suspend fun preprocessModels() {
         withContext(Dispatchers.IO) {
+            logger.log(
+                TaskLog(
+                    task = TaskName.PREPARE_MODELS,
+                    status = LogStatus.ONGOING
+                )
+            )
             createUvProcess("run", "src/ner_openvino/preprocess_model.py") {
-                redirectOutput(ProcessBuilder.Redirect.INHERIT)
-                redirectError(ProcessBuilder.Redirect.INHERIT)
+                redirectOutput(ProcessBuilder.Redirect.DISCARD)
+                redirectError(ProcessBuilder.Redirect.DISCARD)
             }.start().waitFor()
         }
     }

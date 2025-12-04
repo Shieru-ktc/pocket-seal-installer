@@ -27,7 +27,6 @@ class MainCommand() : SuspendingCliktCommand() {
                 }
             }
         )
-    val skip by option(help = "Don't skip if already prepared").flag("--no-skip", default = true)
 
     override suspend fun run() {
         val logger = if (jsonMode) JsonLogger() else PlainLogger()
@@ -37,11 +36,10 @@ class MainCommand() : SuspendingCliktCommand() {
         }
 
         logger.log(
-            DownloadProgress(
-                filename = "init",
-                downloaded = 0,
-                total = 1
-            )
+           TaskLog(
+                task = TaskName.DOWNLOAD_UV,
+                status = LogStatus.SCHEDULED
+           )
         )
         // if current directory has "uv" or "uv.exe", skip download
         val uvExists = when (platform) {

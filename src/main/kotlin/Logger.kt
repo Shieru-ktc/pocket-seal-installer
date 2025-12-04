@@ -19,19 +19,27 @@ class JsonLogger : Logger {
     }
 }
 
-class PlainLogger: Logger {
+class PlainLogger : Logger {
     override fun log(event: LogEvent) {
         when (event) {
-            is DownloadProgress -> {
-                val percent = if (event.total > 0) {
-                    event.downloaded * 100 / event.total
-                } else {
-                    0
+            is ModelInfoLog -> {
+                println("Model URLs to download:")
+                println("Save to: ${event.save_to}")
+                println("URLs:")
+                event.urls.forEach { url ->
+                    println(" - $url")
                 }
-                println("Downloading ${event.filename}: $percent% (${event.downloaded}/${event.total} bytes)")
             }
-            is ErrorEvent -> {
-                System.err.println("Error: ${event.message}")
+            is TaskLog -> {
+                val statusString = when (event.status) {
+                    LogStatus.SCHEDULED -> "Scheduled"
+                    LogStatus.ONGOING -> "Ongoing"
+                    LogStatus.COMPLETE -> "Complete"
+                    LogStatus.FAILED -> "Failed"
+                }
+                val progressString = event.progress?.let { " - Progress: ${"%.2f".format(it * 100)}%" } ?: ""
+                val fileString = event.file?.let { " - File: $it" } ?: ""
+                println("Task: ${event.task} - Status: $statusString$progressString$fileString")
             }
         }
         System.out.flush()
