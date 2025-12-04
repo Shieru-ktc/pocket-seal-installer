@@ -18,3 +18,22 @@ class JsonLogger : Logger {
         System.out.flush()
     }
 }
+
+class PlainLogger: Logger {
+    override fun log(event: LogEvent) {
+        when (event) {
+            is DownloadProgress -> {
+                val percent = if (event.total > 0) {
+                    event.downloaded * 100 / event.total
+                } else {
+                    0
+                }
+                println("Downloading ${event.filename}: $percent% (${event.downloaded}/${event.total} bytes)")
+            }
+            is ErrorEvent -> {
+                System.err.println("Error: ${event.message}")
+            }
+        }
+        System.out.flush()
+    }
+}

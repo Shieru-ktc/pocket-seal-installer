@@ -12,8 +12,8 @@ data class DownloadProgress(
     val filename: String,
     val downloaded: Long,
     val total: Long
-)
+) : LogEvent
 
 @Serializable
 @SerialName("error")
-data class ErrorEvent(val message: String)
+data class ErrorEvent(val message: String) : LogEvent

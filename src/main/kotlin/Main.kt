@@ -2,31 +2,47 @@ package com.github.shieru_lab
 
 import com.github.ajalt.clikt.command.SuspendingCliktCommand
 import com.github.ajalt.clikt.command.main
-import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
+import com.github.ajalt.clikt.parameters.types.choice
 import java.nio.file.Paths
 import kotlin.io.path.exists
 
+enum class OsType {
+    Windows, Linux
+}
+
 class MainCommand() : SuspendingCliktCommand() {
-    val platform by option("--platform", help = "Override platform (windows/linux)").convert {
-        when (it.lowercase()) {
-            "windows" -> Platform.Windows()
-            "linux" -> Platform.Linux()
-            else -> fail("Unknown platform: $it")
-        }
-    }.default(System.getProperty("os.name").lowercase().let { os ->
-        when {
-            os.contains("windows") -> Platform.Windows()
-            os.contains("linux") -> Platform.Linux()
-            else -> throw IllegalArgumentException("Unsupported OS: $os")
-        }
-    })
+    val jsonMode by option(help = "Print log in json lines style").flag()
+
+    val osType by option("--platform", help = "Override platform (windows/linux)")
+        .choice("windows" to OsType.Windows, "linux" to OsType.Linux)
+        .default(
+            System.getProperty("os.name").lowercase().let { os ->
+                when {
+                    os.contains("windows") -> OsType.Windows
+                    os.contains("linux") -> OsType.Linux
+                    else -> throw IllegalArgumentException("Unsupported OS: $os")
+                }
+            }
+        )
     val skip by option(help = "Don't skip if already prepared").flag("--no-skip", default = true)
 
     override suspend fun run() {
-        println("skip mode: $skip")
+        val logger = if (jsonMode) JsonLogger() else PlainLogger()
+        val platform = when (osType) {
+            OsType.Windows -> Platform.Windows(logger)
+            OsType.Linux -> Platform.Linux(logger)
+        }
+
+        logger.log(
+            DownloadProgress(
+                filename = "init",
+                downloaded = 0,
+                total = 1
+            )
+        )
         // if current directory has "uv" or "uv.exe", skip download
         val uvExists = when (platform) {
             is Platform.Windows -> System.getProperty("user.dir")

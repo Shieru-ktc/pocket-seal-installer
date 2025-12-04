@@ -49,7 +49,7 @@ val systemArch = when (System.getProperty("os.arch").lowercase(Locale.getDefault
     else -> throw UnsupportedOperationException("Unsupported Architecture: ${0}")
 }
 
-sealed class Platform {
+sealed class Platform(val logger: Logger) {
     abstract fun greet()
     abstract override fun toString(): String
     abstract fun uvDownloadUrl(arch: String?, version: String?): String
@@ -193,7 +193,7 @@ sealed class Platform {
         }
     }
 
-    class Windows() : Platform() {
+    class Windows(logger: Logger) : Platform(logger) {
         override fun greet() {
             println("Windows")
         }
@@ -226,7 +226,7 @@ sealed class Platform {
         override fun toString() = "Windows"
     }
 
-    class Linux() : Platform() {
+    class Linux(logger: Logger) : Platform(logger) {
         override fun greet() {
             println("Hello from Linux!")
         }
