@@ -283,13 +283,13 @@ sealed class Platform(val logger: Logger) {
                     }
                 }
             }
-            logger.log(
-                TaskLog(
-                    task = TaskName.DOWNLOAD_MODEL_FILE,
-                    status = LogStatus.COMPLETE,
-                )
-            )
         }
+        logger.log(
+            TaskLog(
+                task = TaskName.DOWNLOAD_MODEL_FILE,
+                status = LogStatus.COMPLETE,
+            )
+        )
     }
 
     suspend fun preprocessModels() {
