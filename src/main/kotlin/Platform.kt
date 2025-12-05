@@ -41,7 +41,7 @@ object HttpClientFactory {
 }
 
 const val UV_DOWNLOAD_BASE = "https://github.com/astral-sh/uv/releases"
-const val PROJECT_REPOSITORY_URL = "https://github.com/Shieru-ktc/NER-can-use-NPU-Test"
+const val PROJECT_REPOSITORY_URL = "https://github.com/Stone5656/NER-can-use-NPU-Test"
 
 val systemArch = when (System.getProperty("os.arch").lowercase(Locale.getDefault())) {
     "x86_64", "amd64" -> "x86_64"
