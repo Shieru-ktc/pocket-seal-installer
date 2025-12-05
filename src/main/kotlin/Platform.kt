@@ -304,6 +304,12 @@ sealed class Platform(val logger: Logger) {
                 redirectOutput(ProcessBuilder.Redirect.DISCARD)
                 redirectError(ProcessBuilder.Redirect.DISCARD)
             }.start().waitFor()
+            logger.log(
+                TaskLog(
+                    task = TaskName.PREPARE_MODELS,
+                    status = LogStatus.COMPLETE
+                )
+            )
         }
     }
 
